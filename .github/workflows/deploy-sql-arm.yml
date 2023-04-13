@@ -1,0 +1,38 @@
+name: Deploy-SQL
+on:
+  push:
+    branches: [ main ]
+    paths: [templates/**, .github/workflows/deploy-sql-arm.yml]
+env:
+  AZURE_RG: github-actions-joren
+  AZURE_SUBSCRIPTION: 1a432800-95d3-475c-8c21-b3b32f7143eb
+jobs:
+  create-sql-databases:
+    runs-on: ubuntu-latest
+    steps:
+    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checkout sources
+        uses: actions/checkout@v2
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Deploy SQL Server ARM template
+        id: deploy-sql-server
+        uses: azure/arm-deploy@v1
+        with:
+          subscriptionId: ${{ env.AZURE_SUBSCRIPTION }}
+          resourceGroupName: ${{ env.AZURE_RG }}
+          template: ./templates/sqltemplate.json
+          parameters: sqladmin=${{secrets.SQL_ADMIN}} sqlpwd=${{secrets.SQL_PWD}}
+      - name: Show server name    
+        run: |
+          echo ${{ steps.deploy-sql-server.outputs.sqlservername }}
+      - name: Deploy Databases with ARM template
+        id: deploy-sql-db
+        uses: azure/arm-deploy@v1
+        with:
+          subscriptionId: ${{ env.AZURE_SUBSCRIPTION }}
+          resourceGroupName: ${{ env.AZURE_RG }}
+          template: ./templates/sqldbtemplate.json
+          parameters: sqlserver=${{steps.deploy-sql-server.outputs.sqlservername}}
